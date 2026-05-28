@@ -139,16 +139,13 @@ function Register({ onRegister }) {
         </form>
         <div className="auth-footer">
           Već imate nalog?{" "}
-          <a
-            href="#"
+          <button
             className="auth-link"
-            onClick={(e) => {
-              e.preventDefault();
-              onRegister();
-            }}
+            onClick={onRegister}
+            style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}
           >
             Prijavite se
-          </a>
+          </button>
         </div>
       </div>
     </div>

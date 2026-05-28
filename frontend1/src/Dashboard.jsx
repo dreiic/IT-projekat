@@ -107,25 +107,6 @@ export default function Dashboard({ currentUser, token, onLogout }) {
     ? games.filter(g => g.naziv.toLowerCase().includes(navSearch.toLowerCase())).slice(0, 6)
     : [];
 
-  const handleAdd = async (e) => {
-    e.preventDefault();
-    try {
-      const res = await fetch("http://localhost:5001/api/games", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(newGame)
-      });
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      setGames((g) => [...g, { id: data.id, ratings: [], average: 0, ...newGame }]);
-      setNewGame({ naziv: "", zanr: "", slika_url: "", kupi_url: "" });
-    } catch {
-      alert("Greška kod dodavanja");
-    }
-  };
 
   const handleDelete = async (id) => {
     if (!window.confirm("Obrisati igru?")) return;

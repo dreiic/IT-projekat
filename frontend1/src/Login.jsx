@@ -112,16 +112,13 @@ function Login({ onLogin, onSwitch }) {
         </form>
         <div className="auth-footer">
           Nemate nalog?{" "}
-          <a
-            href="#"
+          <button
             className="auth-link"
-            onClick={(e) => {
-              e.preventDefault();
-              onSwitch();
-            }}
+            onClick={onSwitch}
+            style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}
           >
             Registrujte se
-          </a>
+          </button>
         </div>
       </div>
     </div>
