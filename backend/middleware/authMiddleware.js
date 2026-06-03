@@ -7,7 +7,7 @@ function authMiddleware(req, res, next) {
   }
   const token = authHeader.split(" ")[1];
   try {
-    const user = jwt.verify(token, "tajna");
+    const user = jwt.verify(token, process.env.JWT_SECRET);
     req.user = user;
     next();
   } catch {

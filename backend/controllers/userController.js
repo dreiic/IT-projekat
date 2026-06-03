@@ -1,23 +1,10 @@
 const db = require("../config/db");
 
-// LOGIN (dummy, ako nemaš još logiku)
-exports.login = (req, res) => {
-  res.status(501).json({ error: "Nije implementirano" });
-};
-
-// REGISTER (dummy, ako nemaš još logiku)
-exports.register = (req, res) => {
-  res.status(501).json({ error: "Nije implementirano" });
-};
-
-// PATCH /api/users/:id – izmjena profila
 exports.updateProfile = (req, res) => {
   const { ime, prezime, opis, profilna_url } = req.body;
-  const id = req.params.id;
-
   db.query(
     "UPDATE korisnik SET ime=?, prezime=?, opis=?, profilna_url=? WHERE id=?",
-    [ime, prezime, opis, profilna_url, id],
+    [ime, prezime, opis, profilna_url, req.params.id],
     (err) => {
       if (err) return res.status(500).json({ error: "Greška pri izmjeni" });
       res.json({ message: "Profil ažuriran" });
@@ -25,7 +12,24 @@ exports.updateProfile = (req, res) => {
   );
 };
 
-// Ostavi i getOne i getAll kao što imaš
+exports.deleteAccount = (req, res) => {
+  const id = req.params.id;
+  db.query("DELETE FROM lajk WHERE korisnik_id = ?", [id], (err) => {
+    if (err) return res.status(500).json({ error: "Greška pri brisanju." });
+    db.query("DELETE FROM ocjena WHERE korisnik_id = ?", [id], (err) => {
+      if (err) return res.status(500).json({ error: "Greška pri brisanju." });
+      db.query("DELETE FROM prati WHERE follower_id = ? OR prati_id = ?", [id, id], (err) => {
+        if (err) return res.status(500).json({ error: "Greška pri brisanju." });
+        db.query("DELETE FROM korisnik WHERE id = ?", [id], (err, result) => {
+          if (err) return res.status(500).json({ error: "Greška pri brisanju." });
+          if (result.affectedRows === 0) return res.status(404).json({ error: "Korisnik ne postoji." });
+          res.json({ message: "Nalog obrisan." });
+        });
+      });
+    });
+  });
+};
+
 exports.getOne = (req, res) => {
   db.query(
     "SELECT id, ime, prezime, email, opis, profilna_url, role FROM korisnik WHERE id = ?",
@@ -67,7 +71,6 @@ exports.getUserReviews = (req, res) => {
 exports.searchUsers = (req, res) => {
   const q = req.query.q;
   if (!q) return res.json([]);
-  
   db.query(
     "SELECT id, ime, prezime, email FROM korisnik WHERE ime LIKE ? OR prezime LIKE ? OR email LIKE ?",
     [`%${q}%`, `%${q}%`, `%${q}%`],

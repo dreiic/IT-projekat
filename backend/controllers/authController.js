@@ -21,7 +21,7 @@ exports.login = (req, res) => {
 
     const token = jwt.sign(
       { id: korisnik.id, role: korisnik.role },
-      "tajna",
+      process.env.JWT_SECRET,
       { expiresIn: "2h" }
     );
 
@@ -72,6 +72,70 @@ exports.register = (req, res) => {
       }
 
       res.status(201).json({ message: "Registracija uspješna! Provjeri email za verifikaciju." });
+    }
+  );
+};
+
+exports.forgotPassword = (req, res) => {
+  const { email } = req.body;
+  db.query("SELECT * FROM korisnik WHERE email = ?", [email], async (err, result) => {
+    if (err) return res.status(500).json({ message: "Greška u bazi." });
+    if (result.length === 0) return res.status(404).json({ message: "Email ne postoji." });
+
+    const token = crypto.randomBytes(32).toString("hex");
+    const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 sat
+
+    db.query(
+      "UPDATE korisnik SET reset_token = ?, reset_token_expires = ? WHERE email = ?",
+      [token, expires, email],
+      async (err) => {
+        if (err) return res.status(500).json({ message: "Greška u bazi." });
+
+        const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+        try {
+          await transporter.sendMail({
+            from: `"GameRate" <${process.env.EMAIL_USER}>`,
+            to: email,
+            subject: "Reset lozinke — GameRate",
+            html: `
+              <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#111;color:#e0e0e0;border-radius:8px;">
+                <h2 style="color:#fff;font-size:20px;margin:0 0 8px 0;">🎮 GameRate</h2>
+                <p style="color:#a0a0a0;margin:0 0 24px 0;">Primili smo zahtjev za reset lozinke.</p>
+                <p style="margin:0 0 20px 0;">Klikni dugme ispod — link važi <strong>1 sat</strong>:</p>
+                <a href="${resetLink}" style="display:inline-block;background:#f59e0b;color:#111;padding:12px 24px;border-radius:4px;text-decoration:none;font-weight:700;">
+                  Resetuj lozinku
+                </a>
+                <p style="margin:24px 0 0 0;color:#555;font-size:12px;">Ako nisi ti zatražio reset, ignoriši ovaj email.</p>
+              </div>
+            `
+          });
+        } catch (mailErr) {
+          console.error("Email nije poslan:", mailErr.message);
+        }
+
+        res.json({ message: "Link za reset poslan na email." });
+      }
+    );
+  });
+};
+
+exports.resetPassword = (req, res) => {
+  const { token, lozinka } = req.body;
+  db.query(
+    "SELECT * FROM korisnik WHERE reset_token = ? AND reset_token_expires > NOW()",
+    [token],
+    (err, result) => {
+      if (err) return res.status(500).json({ message: "Greška u bazi." });
+      if (result.length === 0) return res.status(400).json({ message: "Token je nevažeći ili istekao." });
+
+      db.query(
+        "UPDATE korisnik SET lozinka = ?, reset_token = NULL, reset_token_expires = NULL WHERE reset_token = ?",
+        [lozinka, token],
+        (err) => {
+          if (err) return res.status(500).json({ message: "Greška pri promjeni lozinke." });
+          res.json({ message: "Lozinka uspješno promijenjena." });
+        }
+      );
     }
   );
 };

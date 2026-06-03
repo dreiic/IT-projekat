@@ -1,8 +1,16 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../config/db");
+const auth = require("../middleware/authMiddleware");
+const adminOnly = require("../middleware/adminOnly");
 
-// === GET sve igre ===
+router.get("/genres", (req, res) => {
+  db.query("SELECT DISTINCT zanr FROM igra ORDER BY zanr", (err, results) => {
+    if (err) return res.status(500).json({ error: "Greška u bazi" });
+    res.json(results.map(row => row.zanr));
+  });
+});
+
 router.get("/", (req, res) => {
   db.query("SELECT * FROM igra", (err, result) => {
     if (err) return res.status(500).json({ error: "Greška" });
@@ -10,30 +18,34 @@ router.get("/", (req, res) => {
   });
 });
 
-// === POST dodaj novu igru ===
-router.post("/", (req, res) => {
+router.post("/", auth, adminOnly, (req, res) => {
   const { naziv, zanr, kupi_url, slika_url } = req.body;
   db.query(
     "INSERT INTO igra (naziv, zanr, slika_url, kupi_url) VALUES (?, ?, ?, ?)",
     [naziv, zanr, slika_url, kupi_url],
     (err, result) => {
       if (err) return res.status(500).json({ error: "Ne mogu dodati" });
-      // Možeš vratiti novi ID ako trebaš na frontendu
       res.status(201).json({ id: result.insertId, message: "Igra dodata" });
     }
   );
 });
 
-// === DELETE igra po ID ===
-router.delete("/:id", (req, res) => {
-  db.query("DELETE FROM igra WHERE id = ?", [req.params.id], (err, result) => {
+router.delete("/ratings/:ratingId", auth, adminOnly, (req, res) => {
+  db.query("DELETE FROM ocjena WHERE id = ?", [req.params.ratingId], (err, result) => {
+    if (err) return res.status(500).json({ error: "Greška pri brisanju." });
+    if (result.affectedRows === 0) return res.status(404).json({ error: "Ocjena ne postoji." });
+    res.json({ message: "Ocjena obrisana." });
+  });
+});
+
+router.delete("/:id", auth, adminOnly, (req, res) => {
+  db.query("DELETE FROM igra WHERE id = ?", [req.params.id], (err) => {
     if (err) return res.status(500).json({ error: "Ne mogu obrisati" });
     res.json({ message: "Igra obrisana" });
   });
 });
 
-// === POST ocijeni igru ===
-router.post("/:id/rate", (req, res) => {
+router.post("/:id/rate", auth, (req, res) => {
   const { userId, rating, comment } = req.body;
   db.query(
     "INSERT INTO ocjena (igra_id, korisnik_id, ocjena, komentar) VALUES (?, ?, ?, ?)",
@@ -45,10 +57,9 @@ router.post("/:id/rate", (req, res) => {
   );
 });
 
-// === GET sve ocjene za igru ===
 router.get("/:id/ratings", (req, res) => {
   db.query(
-    `SELECT k.ime AS korisnik, o.ocjena, o.komentar, o.datum
+    `SELECT o.id, k.ime AS korisnik, o.ocjena, o.komentar, o.datum
      FROM ocjena o
      JOIN korisnik k ON o.korisnik_id = k.id
      WHERE o.igra_id = ?
@@ -60,16 +71,5 @@ router.get("/:id/ratings", (req, res) => {
     }
   );
 });
-
-router.get("/genres", (req, res) => {
-  const sql = "SELECT DISTINCT zanr FROM igra ORDER BY zanr";
-  db.query(sql, (err, results) => {
-    if (err) return res.status(500).json({ error: "Greška u bazi" });
-    // results je niz objekata sa poljem zanr
-    const genres = results.map(row => row.zanr);
-    res.json(genres);
-  });
-});
-
 
 module.exports = router;
