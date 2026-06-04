@@ -44,6 +44,7 @@ export default function AddGame() {
       formData.append("image", imageFile);
       const uploadRes = await fetch("http://localhost:5001/api/upload", {
         method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
         body: formData
       });
       if (!uploadRes.ok) throw new Error("Greška pri uploadu slike.");
